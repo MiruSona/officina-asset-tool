@@ -1,0 +1,7 @@
+# 시험 자료는 바이트로 견준다. Windows autocrlf 가 CRLF 로 바꾸면 시험이 깨진다.
+Testdata/** text eol=lf
+# 계약 예제는 DataTool 과 바이트 대조한다. git 이 한 글자도 바꾸지 않게 한다.
+Testdata/contract/*.json -text
+# 시험 프로젝트의 그림·소리는 바이너리다.
+Testdata/**/*.png binary
+Testdata/**/*.wav binary
