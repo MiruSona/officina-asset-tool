@@ -4,7 +4,8 @@
 에셋을 싣고 굽는 일은 Addressables 가 그대로 하고, 이 툴은 그 위에 얹는다. 명령 이름은 `assettool` 이다.
 
 **상태 : 1차 `index` 명령까지 만들었다 (2026-10-01).** 시험 I1~I8 통과, 계약 예제와 바이트가 같다.
-다만 **실물 Unity 가 쓴 파일로는 아직 못 돌렸다** — 아래 「한계」.
+시험용 Unity 프로젝트(Unity 6000.3)가 쓴 파일로 돌려 맞는 것을 확인했고(2026-10-03),
+**스프라이트 아틀라스 안 스프라이트도 `sub` 로 적는다** (2026-10-03, 아래 「아틀라스」).
 
 ## 무엇을 하나
 
@@ -199,15 +200,45 @@ DataTool 은 이것을 읽어 시험하고, AssetTool 은 시험 자료 프로�
 
 `asset` 칸 값 = address 그대로. 하위 에셋은 `address[이름]` (Addressables 하위 객체 문법). **빈 문자열은 「없음」** 이다. 라벨은 안 받는다.
 
+### 2-5. 덧붙임 — 아틀라스 `sub` (2026-10-03, 계약 버전 1 그대로)
+
+> 위 2-1 표는 루트 문서를 옮긴 글이라 그대로 두고, 더한 선택 칸을 여기 적는다. 루트 문서·DataTool README 반영은 스튜디오 몫.
+
+- 아틀라스 항목(`path` 확장자 `.spriteatlas` · `.spriteatlasv2`)의 `kind` 는 **그대로 `other`** 다. 새 kind 를 만들지 않는다 — 옛 DataTool 은 모르는 kind 를 보면 색인 전체를 거부한다.
+- 아틀라스 항목의 `sub[]` 원소 : `{"name", "rect": {x,y,w,h}, "path": "Assets/…/원본.png", "guid": "원본 텍스처 guid"}`.
+  - `path`·`guid` 는 **선택 칸**(없으면 안 적는다). 스프라이트 시트 항목의 `sub` 에는 지금처럼 이 칸이 없다 — 2-2 예제 바이트는 그대로다.
+  - `rect` 는 원본 텍스처 안의 자리(픽셀, y 는 아래에서). **Single 스프라이트는 그림 전체** : png 머리에서 크기를 읽으면 `0,0,w,h`, 못 읽으면(png 아님 · 잘림 · 한 변 65535 초과 · 뿌리 밖 링크) `w`·`h` 가 0 (= 그림 전체).
+  - 차례는 이름의 바이트 차례다.
+- 아틀라스를 못 풀면 항목은 `sub` 없이 넣고 알림을 낸다. index 는 죽지 않는다.
+  **packable 을 하나라도 못 풀면 일부만 찬 `sub` 를 내지 않고 `sub` 를 비운다(= 모른다).** 일부만 내면 DataTool 이 맞는 `address[이름]` 을 오류로 잡기 때문이다.
+
+## 아틀라스
+
+`index` 는 주소에 걸린 아틀라스를 풀어 「스프라이트 이름 → 원본 png 와 rect」 를 `sub` 에 적는다 (꼴은 2-5).
+DataTool 은 `address[이름]` 칸의 미리보기를 원본 png 에서 잘라 보여 줄 수 있다.
+
+- v2(`.spriteatlasv2`, `SpriteAtlasAsset.m_ImporterData.packables`) · v1(`.spriteatlas`, `SpriteAtlas.m_EditorData.packables`) 둘 다 읽는다.
+  **v1 의 `m_PackedSprites` 같은 칸은 묶기를 돌린 뒤에만 차므로 안 믿고 packables 로 푼다.**
+- packable 원소 : 텍스처(`fileID 2800000`) → 그 스프라이트 전부 · 폴더 → 아래(하위 폴더까지) 스프라이트 텍스처 전부 · 그 밖의 fileID → 텍스처 `.meta` 의 `internalID` 가 같은 스프라이트 하나 (`21300000` 은 Single 의 스프라이트).
+- Single 텍스처는 스프라이트 하나, 이름 = 파일 이름. `.meta` 의 `sprites:` 에 남은 찌꺼기(`파일명_0`)는 안 본다.
+- variant 는 마스터를 따라가 같은 목록을 낸다. 마스터가 또 variant 면 알림.
+- `sub` 를 비우고 알림 : packable guid 가 표에 없음(`Packages/` 등) · 없는 스프라이트 fileID · 스프라이트가 아닌 텍스처 · 폴더 fileID 인데 텍스처(또는 거꾸로) · variant 의 마스터가 그런 경우.
+- `sub` 는 내고 알림 : 다른 그림의 같은 이름 (첫 것만 둔다).
+- png 머리는 뿌리 안에서만 연다(`os.Root`) — 링크로 뿌리 밖 파일을 읽지 않는다.
+- 실물 확인 : 시험용 Unity 프로젝트의 아틀라스 6개(v2·v1·두 variant·스프라이트 하나 고르기)가 Unity API 로 얻은 정답과 이름·path·guid·rect 모두 맞았다. 이 파일들은 `Testdata/atlas/` 에 넣어 자동 시험으로 지킨다.
+
 ## 한계
 
-- **실물 Unity 가 쓴 파일로는 못 봤다.** `Testdata/project/` 는 Unity YAML 꼴을 알고 손으로 쓴 흉내다
-  (공식 Addressables-Sample 은 라이선스 확인 전이라 안 가져왔다). 긴 값을 접는 꼴 · 한글 address 를 적는 꼴은 실물로 확인해야 한다.
+- `Testdata/project/` 는 Unity YAML 꼴을 알고 손으로 쓴 흉내다 (공식 Addressables-Sample 은 라이선스 확인 전이라 안 가져왔다).
+  실물 Unity 파일은 시험용 Unity 프로젝트로 손으로 돌려 봤고(`Docs/Todo/할일.md`), 자동 시험 자료로 굳힌 것은 `Testdata/atlas/` 뿐이다.
 - **따옴표 없는 값 안에 ` #` 이 있으면 그 칸을 못 읽는다(종료 4).** 주석으로 잘라 조용히 틀리는 것보다 낫다고 봤다. Unity 가 이런 address 를 따옴표로 감싸 쓰는지 실물로 보고 풀 수 있다.
 - **`.psb` (PSD Importer) 는 `sub` 를 안 만든다.** `.meta` 꼴이 달라서다. 칸에 `[이름]` 을 적으면 DataTool 이 경고로 통과시킨다.
 - 스프라이트 시트(Multiple)인데 자른 칸이 0개면 `sub` 를 안 적는다 — 「하위를 모른다」로 읽힌다.
 - `Packages/` 안 에셋은 `.meta` 를 안 훑으니 `path:""` · `kind:"other"` 로 들어가고 알림이 난다.
-- `sourceMtime` 은 settings 폴더의 `*.asset` 만 본다. 폴더 항목 안에 파일만 새로 넣거나 스프라이트 시트를 다시 자르면(`.meta` 만 바뀜) 낡음이 안 잡힌다.
+- 다 읽었는데 스프라이트가 0개인 아틀라스(빈 packables 등)는 `sub` 가 없다 — 「모른다」로 읽힌다.
+- 옛 Unity(2019 이전)가 쓴 Multiple 시트는 `.meta` 에 `internalID` 가 없어, 스프라이트 하나를 고른 packable 을 못 풀고 그 아틀라스는 `sub` 가 비워진다.
+- 아틀라스 `sub` 는 원본 텍스처 안 rect 다. 묶인 아틀라스 텍스처 안 자리(회전·타이트 묶기 포함)는 안 적는다.
+- `sourceMtime` 은 settings 폴더의 `*.asset` 만 본다. 폴더 항목 안에 파일만 새로 넣거나 스프라이트 시트를 다시 자르면(`.meta` 만 바뀜), 아틀라스 packables·텍스처를 바꾸면 낡음이 안 잡힌다.
 
 ## 폴더
 
@@ -215,11 +246,13 @@ DataTool 은 이것을 읽어 시험하고, AssetTool 은 시험 자료 프로�
 cmd/assettool/        인자 가르기 · 결과 찍기 (index · version)
 internal/unityyaml/   Unity YAML 줄 읽기. Addressables 를 모른다
 internal/meta/        .meta 훑기 → guid 표 · 스프라이트 시트
+internal/atlas/       스프라이트 아틀라스 풀기 (v1·v2·variant). 아틀라스 칸 이름을 아는 유일한 곳
 internal/addr/        settings·그룹·스키마 읽기. Addressables 칸 이름을 아는 유일한 곳
 internal/index/       계약 꼴 · kind 판정 · 폴더 펼치기 · 정렬 · 쓰기. 계약을 아는 유일한 곳
 internal/testproj/    시험이 임시 Unity 뿌리를 만드는 도구 (시험에서만 쓴다)
 Testdata/contract/    address-index.example.json (DataTool 과 같은 바이트)
 Testdata/project/     작은 Unity 뿌리 흉내. 색인하면 위 예제가 나온다
+Testdata/atlas/       Unity 가 쓴 아틀라스 6개 · png · .meta (시험 코드가 settings·그룹을 덧붙인다) · before-pack/ 묶기 전 v1
 ```
 
 ## 차례

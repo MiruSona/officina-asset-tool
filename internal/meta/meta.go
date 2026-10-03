@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/MiruSona/officina-asset-tool/internal/unityyaml"
@@ -16,6 +17,7 @@ import (
 type Sprite struct {
 	Name       string
 	X, Y, W, H float64
+	ID         int64 // internalID. 아틀라스가 이 스프라이트 하나를 fileID 로 가리킨다. 칸이 없으면 0
 }
 
 // Asset 은 .meta 짝이 있는 파일이나 폴더 하나다. Path 는 뿌리 기준, `/` 구분.
@@ -23,6 +25,7 @@ type Asset struct {
 	Path        string
 	GUID        string
 	IsDir       bool
+	SpriteMode  int  // TextureImporter.spriteMode. 0 = 스프라이트 아님 · 1 = Single · 2 = Multiple
 	SpriteSheet bool // spriteMode: 2 (Multiple)
 	Sprites     []Sprite
 	// SheetErr 는 시트 칸을 못 읽은 까닭이다. 색인이 이 에셋을 쓸 때만 오류로 올린다 (설계 4-2).
@@ -157,50 +160,52 @@ func readMeta(p, metaRel string) (*Asset, string, error) {
 	}
 
 	a := &Asset{GUID: guid}
-	sprites, sheet, err := readSprites(root)
+	sprites, mode, err := readSprites(root)
 	if err != nil {
 		a.SpriteSheet = true
 		a.SheetErr = fmt.Errorf("%s: %w", metaRel, err)
 		return a, "", nil
 	}
-	a.SpriteSheet = sheet
+	a.SpriteMode = mode
+	a.SpriteSheet = mode == 2
 	a.Sprites = sprites
 	return a, "", nil
 }
 
-// readSprites 는 TextureImporter 의 spriteMode: 2 일 때만 spriteSheet.sprites 를 읽는다.
-func readSprites(root *unityyaml.Node) ([]Sprite, bool, error) {
+// readSprites 는 TextureImporter 의 spriteMode 를 주고, 2 일 때만 spriteSheet.sprites 를 읽는다.
+// Single(1) 의 sprites 목록은 쓰이지 않는 찌꺼기(`파일명_0`)일 수 있어 읽지 않는다.
+func readSprites(root *unityyaml.Node) ([]Sprite, int, error) {
 	mode, err := root.Lookup("TextureImporter", "spriteMode")
 	if err != nil || mode == nil {
-		return nil, false, err
+		return nil, 0, err
 	}
 	m, err := mode.Int()
 	if err != nil {
-		return nil, false, err
+		return nil, 0, err
 	}
 	if m != 2 {
-		return nil, false, nil
+		return nil, m, nil
 	}
 	list, err := root.Lookup("TextureImporter", "spriteSheet", "sprites")
 	if err != nil {
-		return nil, false, err
+		return nil, 0, err
 	}
 	if list == nil {
-		return nil, true, nil
+		return nil, m, nil
 	}
 	items, err := list.List()
 	if err != nil {
-		return nil, false, err
+		return nil, 0, err
 	}
 	var out []Sprite
 	for _, it := range items {
 		s, err := readSprite(it)
 		if err != nil {
-			return nil, false, err
+			return nil, 0, err
 		}
 		out = append(out, s)
 	}
-	return out, true, nil
+	return out, m, nil
 }
 
 func readSprite(it *unityyaml.Node) (Sprite, error) {
@@ -230,6 +235,18 @@ func readSprite(it *unityyaml.Node) (Sprite, error) {
 		if *f.dst, err = n.Float(); err != nil {
 			return s, err
 		}
+	}
+	idNode, err := it.Lookup("internalID")
+	if err != nil || idNode == nil {
+		return s, err
+	}
+	text, err := idNode.String()
+	if err != nil {
+		return s, err
+	}
+	// 64비트 값이라 Int(플랫폼 int) 대신 ParseInt 로 읽는다.
+	if s.ID, err = strconv.ParseInt(text, 10, 64); err != nil {
+		return s, &unityyaml.Error{Line: idNode.Line, Msg: "internalID 가 정수가 아니다: " + text}
 	}
 	return s, nil
 }

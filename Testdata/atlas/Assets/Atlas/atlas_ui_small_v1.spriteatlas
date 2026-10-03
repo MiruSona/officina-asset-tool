@@ -1,0 +1,74 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!687078895 &4343727234628468602
+SpriteAtlas:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: atlas_ui_small_v1
+  m_EditorData:
+    serializedVersion: 2
+    textureSettings:
+      serializedVersion: 2
+      anisoLevel: 1
+      compressionQuality: 50
+      maxTextureSize: 2048
+      textureCompression: 0
+      filterMode: 1
+      generateMipMaps: 0
+      readable: 0
+      crunchedCompression: 0
+      sRGB: 1
+    platformSettings: []
+    packingSettings:
+      serializedVersion: 2
+      padding: 4
+      blockOffset: 1
+      allowAlphaSplitting: 0
+      enableRotation: 1
+      enableTightPacking: 1
+      enableAlphaDilation: 0
+    secondaryTextureSettings: {}
+    variantMultiplier: 0.5
+    packables: []
+    bindAsDefault: 1
+    isAtlasV2: 0
+    cachedData: {fileID: 0}
+    packedSpriteRenderDataKeys:
+    - 9a6ba2b0f17d1c3439bba133c377dbc9: 21300000
+    - adcd520169b33ec4d8afd065238af7f5: 21300000
+    - 1aad82c26af84b449b6fff9f46d8018d: 21300000
+    - 0028c21338ef3184c8d79297fe17fd5a: 21300000
+    - 0b67f208dd3701b4a9c57f07badc1776: 1143696303
+    - 0b67f208dd3701b4a9c57f07badc1776: 410117068
+    - 0b67f208dd3701b4a9c57f07badc1776: -2031164269
+    - 0b67f208dd3701b4a9c57f07badc1776: 1174821638
+    - d325406ae6c66c4408213538abab0ac9: 21300000
+    - b450e9aa49842754495691b96cf98f2a: 21300000
+  m_MasterAtlas: {fileID: 4343727234628468602, guid: 8ef34f3e5c8130042b2cf22f119b4f97, type: 2}
+  m_PackedSprites:
+  - {fileID: 21300000, guid: 9a6ba2b0f17d1c3439bba133c377dbc9, type: 3}
+  - {fileID: 21300000, guid: adcd520169b33ec4d8afd065238af7f5, type: 3}
+  - {fileID: 21300000, guid: 1aad82c26af84b449b6fff9f46d8018d, type: 3}
+  - {fileID: 21300000, guid: 0028c21338ef3184c8d79297fe17fd5a, type: 3}
+  - {fileID: 1143696303, guid: 0b67f208dd3701b4a9c57f07badc1776, type: 3}
+  - {fileID: 410117068, guid: 0b67f208dd3701b4a9c57f07badc1776, type: 3}
+  - {fileID: -2031164269, guid: 0b67f208dd3701b4a9c57f07badc1776, type: 3}
+  - {fileID: 1174821638, guid: 0b67f208dd3701b4a9c57f07badc1776, type: 3}
+  - {fileID: 21300000, guid: d325406ae6c66c4408213538abab0ac9, type: 3}
+  - {fileID: 21300000, guid: b450e9aa49842754495691b96cf98f2a, type: 3}
+  m_PackedSpriteNamesToIndex:
+  - f_two
+  - f_one
+  - atl_big
+  - f_deep
+  - cell_d
+  - cell_b
+  - cell_c
+  - cell_a
+  - atl_checker
+  - atl_stripes
+  m_RenderDataMap: {}
+  m_Tag: atlas_ui_v1
+  m_IsVariant: 1

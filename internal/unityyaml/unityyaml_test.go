@@ -376,3 +376,30 @@ func TestHashInPlainValueIsBad(t *testing.T) {
 		}
 	}
 }
+
+// 아틀라스 v1 의 packedSpriteRenderDataKeys : 키가 guid 인 한 줄짜리 맵의 목록. 같은 키가 여러 번, 숫자로 시작하는 키도 있다.
+func TestListOfOneKeyMapsWithRepeatedKeys(t *testing.T) {
+	src := "--- !u!687078895 &4343727234628468602\nSpriteAtlas:\n  m_EditorData:\n    packedSpriteRenderDataKeys:\n" +
+		"    - 0028c21338ef3184c8d79297fe17fd5a: 21300000\n" +
+		"    - 0b67f208dd3701b4a9c57f07badc1776: 1143696303\n" +
+		"    - 0b67f208dd3701b4a9c57f07badc1776: -2031164269\n" +
+		"  m_Tag: atlas_ui_v1\n"
+	root := mustParse(t, src)[0].Root
+	list, err := root.Lookup("SpriteAtlas", "m_EditorData", "packedSpriteRenderDataKeys")
+	if err != nil || list == nil {
+		t.Fatalf("목록 = %v %v", list, err)
+	}
+	items, err := list.List()
+	if err != nil || len(items) != 3 {
+		t.Fatalf("원소 = %d %v", len(items), err)
+	}
+	if got := mustString(t, items[2], "0b67f208dd3701b4a9c57f07badc1776"); got != "-2031164269" {
+		t.Fatalf("셋째 값 = %q", got)
+	}
+	if got := mustString(t, items[0], "0028c21338ef3184c8d79297fe17fd5a"); got != "21300000" {
+		t.Fatalf("첫째 값 = %q", got)
+	}
+	if got := mustString(t, root, "SpriteAtlas", "m_Tag"); got != "atlas_ui_v1" {
+		t.Fatalf("뒤 칸 = %q", got)
+	}
+}

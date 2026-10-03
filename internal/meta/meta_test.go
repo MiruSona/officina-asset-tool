@@ -50,6 +50,7 @@ TextureImporter:
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       outline: []
+      internalID: 7482667652216324306
       indices:
     - serializedVersion: 2
       name: icon_potion
@@ -131,6 +132,13 @@ func TestScanGuidTableAndSprites(t *testing.T) {
 	want := Sprite{Name: "icon_potion", X: 64, Y: 64, W: 64, H: 64.5}
 	if sheet.Sprites[1] != want {
 		t.Fatalf("rect = %+v", sheet.Sprites[1])
+	}
+	// internalID 는 아틀라스가 스프라이트 하나를 fileID 로 가리킬 때 쓴다. 없으면 0.
+	if sheet.Sprites[0].ID != 7482667652216324306 || sheet.Sprites[1].ID != 0 || sheet.SpriteMode != 2 {
+		t.Fatalf("internalID·spriteMode = %+v", sheet)
+	}
+	if s, _ := tbl.ByGUID("11111111111111111111111111111111"); s.SpriteMode != 1 {
+		t.Fatalf("Single 은 spriteMode 1 = %+v", s)
 	}
 	if s, _ := tbl.ByGUID("11111111111111111111111111111111"); s.SpriteSheet || len(s.Sprites) != 0 {
 		t.Fatalf("Single 은 sub 없음 = %+v", s)

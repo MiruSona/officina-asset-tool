@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/MiruSona/officina-asset-tool/internal/addr"
+	"github.com/MiruSona/officina-asset-tool/internal/atlas"
 	"github.com/MiruSona/officina-asset-tool/internal/meta"
 )
 
@@ -47,10 +48,13 @@ type Entry struct {
 	Sub            []Sub    `json:"sub,omitempty"`
 }
 
-// Sub 는 스프라이트 시트 안 한 칸이다.
+// Sub 는 스프라이트 시트 안 한 칸이나 아틀라스 안 스프라이트 하나다.
+// Path·GUID 는 아틀라스만 적는다 (원본 텍스처). 시트는 그 에셋 자신이라 비운다.
 type Sub struct {
 	Name string `json:"name"`
 	Rect Rect   `json:"rect"`
+	Path string `json:"path,omitempty"`
+	GUID string `json:"guid,omitempty"`
 }
 
 // Rect 는 픽셀 단위, y 는 아래에서 잰다.
@@ -211,7 +215,7 @@ func buildEntries(root string, s *addr.Settings, table *meta.Table) ([]Entry, []
 			explicit[strings.ToLower(e.GUID)] = true
 		}
 	}
-	ex := expander{root: root, table: table, explicit: explicit, settingsDir: path.Dir(s.Path) + "/"}
+	ex := expander{root: root, table: table, explicit: explicit, settingsDir: path.Dir(s.Path) + "/", notices: &notices}
 
 	entries := []Entry{}
 	for _, g := range s.Groups {
@@ -224,7 +228,7 @@ func buildEntries(root string, s *addr.Settings, table *meta.Table) ([]Entry, []
 				continue
 			}
 			if !a.IsDir {
-				filled, err := fill(base, a)
+				filled, err := ex.fill(base, a)
 				if err != nil {
 					return nil, notices, err
 				}
@@ -259,10 +263,19 @@ func buildEntries(root string, s *addr.Settings, table *meta.Table) ([]Entry, []
 }
 
 // fill 은 경로를 푼 항목에 path·kind·sub 를 채운다. 시트를 못 읽은 에셋이면 여기서 오류다.
-func fill(e Entry, a *meta.Asset) (Entry, error) {
+// 아틀라스는 kind 를 other 로 두고 sub 만 채운다. 못 풀면 알림만 내고 sub 없이 넣는다.
+func (x expander) fill(e Entry, a *meta.Asset) (Entry, error) {
 	e.GUID = a.GUID
 	e.Path = a.Path
 	e.Kind = KindOf(a.Path)
+	if atlas.IsAtlas(a.Path) {
+		sprites, n := atlas.Read(x.root, x.table, a)
+		*x.notices = append(*x.notices, n...)
+		for _, s := range sprites {
+			e.Sub = append(e.Sub, Sub{Name: s.Name, Rect: Rect{X: s.X, Y: s.Y, W: s.W, H: s.H}, Path: s.Path, GUID: s.GUID})
+		}
+		return e, nil
+	}
 	// .psb(PSD Importer)는 1차엔 sub 를 안 만든다 (설계 4-3). 시트 칸도 안 읽으니 그 오류도 안 올린다.
 	if strings.EqualFold(path.Ext(a.Path), ".psb") {
 		return e, nil
@@ -285,6 +298,7 @@ type expander struct {
 	table       *meta.Table
 	explicit    map[string]bool
 	settingsDir string
+	notices     *[]string // buildEntries 의 알림 목록. 아틀라스 알림을 여기 더한다
 }
 
 // expand 는 폴더 항목을 그 아래 파일들로 펼친다. 뺄 것 ①~④ 와 겹침 규칙은 설계 4-3.
@@ -323,7 +337,7 @@ func (x expander) expand(folder Entry, a *meta.Asset) ([]Entry, error) {
 		e := folder
 		e.Address = folder.Address + "/" + strings.TrimPrefix(full, a.Path+"/")
 		e.FromFolder = folder.Address
-		filled, err := fill(e, child)
+		filled, err := x.fill(e, child)
 		if err != nil {
 			return err
 		}

@@ -49,6 +49,29 @@ func (p *Project) Folder(rel, guid string) {
 	p.File(rel+".meta", "fileFormatVersion: 2\nguid: "+guid+"\nfolderAsset: yes\nDefaultImporter:\n  externalObjects: {}\n  userData: \n")
 }
 
+// CopyDir 는 src 폴더를 뿌리 기준 rel 아래로 통째로 복사한다.
+func (p *Project) CopyDir(src, rel string) {
+	p.t.Helper()
+	err := filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		sub, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		p.File(rel+"/"+filepath.ToSlash(sub), string(data))
+		return nil
+	})
+	if err != nil {
+		p.t.Fatal(err)
+	}
+}
+
 func Meta(guid string) string {
 	return "fileFormatVersion: 2\nguid: " + guid + "\nNativeFormatImporter:\n  externalObjects: {}\n  mainObjectFileID: 11400000\n  userData: \n"
 }
