@@ -86,9 +86,15 @@ func Scan(root string) (*Table, []string, error) {
 		metaRel := filepath.ToSlash(rel)
 		assetRel := strings.TrimSuffix(metaRel, ".meta")
 
-		info, statErr := os.Stat(strings.TrimSuffix(p, ".meta"))
+		partner := strings.TrimSuffix(p, ".meta")
+		info, statErr := os.Stat(partner)
 		if statErr != nil {
 			notices = append(notices, fmt.Sprintf("%s : 짝 파일이 없는 .meta 라 건너뛴다", metaRel))
+			return nil
+		}
+		// WalkDir 는 링크·정션 폴더 안으로 안 들어간다. 표에 넣으면 안의 파일이 소리 없이 빠지니 빼고 알린다.
+		if li, err := os.Lstat(partner); err == nil && li.Mode()&(fs.ModeSymlink|fs.ModeIrregular) != 0 && info.IsDir() {
+			notices = append(notices, fmt.Sprintf("%s : 링크·정션 폴더라 안을 훑지 못해 건너뛴다", assetRel))
 			return nil
 		}
 		a, notice, err := readMeta(p, metaRel)

@@ -2,7 +2,9 @@ package meta
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -201,5 +203,44 @@ func TestBrokenSpriteSheetIsDeferred(t *testing.T) {
 		if !strings.Contains(a.SheetErr.Error(), ".png.meta") {
 			t.Fatalf("오류 글에 파일 이름이 없다 = %v", a.SheetErr)
 		}
+	}
+}
+
+func TestLinkedFolderIsSkippedWithNotice(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"Outside/a.png":      "png",
+		"Assets/Linked.meta": simpleMeta("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+		"Assets/Real.meta":   simpleMeta("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+		"Assets/Real/b.txt":  "x",
+	})
+	link := filepath.Join(root, "Assets", "Linked")
+	target := filepath.Join(root, "Outside")
+	if runtime.GOOS == "windows" {
+		if out, err := exec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput(); err != nil {
+			t.Skipf("정션을 못 만든다: %v %s", err, out)
+		}
+	} else if err := os.Symlink(target, link); err != nil {
+		t.Skipf("심볼릭 링크를 못 만든다: %v", err)
+	}
+
+	tbl, notices, err := Scan(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := tbl.ByGUID("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"); ok {
+		t.Error("링크 폴더가 표에 들어갔다")
+	}
+	if a, ok := tbl.ByGUID("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"); !ok || !a.IsDir {
+		t.Errorf("보통 폴더가 표에서 빠졌다: %v", notices)
+	}
+	found := false
+	for _, n := range notices {
+		if strings.Contains(n, "Assets/Linked") && strings.Contains(n, "링크") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("링크 폴더 알림이 없다: %v", notices)
 	}
 }

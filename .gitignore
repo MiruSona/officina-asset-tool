@@ -1,2 +1,5 @@
 /bin/
 *.exe
+
+*.local.md
+Private/

@@ -4,8 +4,10 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -282,4 +284,34 @@ func atlasV2(packables ...string) string {
 		}
 	}
 	return fmt.Sprintf("%%YAML 1.1\n%%TAG !u! tag:unity3d.com,2011:\n--- !u!612988286 &1\nSpriteAtlasAsset:\n  m_ObjectHideFlags: 0\n  m_Name: \n  serializedVersion: 2\n  m_MasterAtlas: {fileID: 0}\n  m_ImporterData:\n    packables:%s  m_IsVariant: 0\n  m_ScriptablePacker: {fileID: 0}\n", list)
+}
+
+// 링크·정션 폴더는 WalkDir 가 안 들어가니, 폴더 packable 이 일부만 찬 sub 를 내지 않고 비우는지 본다.
+func TestAtlasLinkedFolderEmptiesSub(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("junction 은 Windows 만 (심볼릭 링크는 권한이 있어야 만든다)")
+	}
+	junction := func(t *testing.T, p *proj, rel string) {
+		t.Helper()
+		link := filepath.Join(p.Root, filepath.FromSlash(rel))
+		target := filepath.Join(t.TempDir(), "outside")
+		if err := os.Rename(link, target); err != nil {
+			t.Fatal(err)
+		}
+		if out, err := exec.Command("cmd", "/c", "mklink", "/J", link, target).CombinedOutput(); err != nil {
+			t.Skipf("junction 을 못 만든다: %v %s", err, out)
+		}
+		t.Cleanup(func() { exec.Command("cmd", "/c", "rmdir", link).Run() })
+	}
+	for name, c := range map[string]struct{ rel, word string }{
+		"폴더 packable 안 아래 폴더": {atlasDir + "AtlasFolder/Sub", "링크"},
+		"폴더 packable 자체":      {atlasDir + "AtlasFolder", "표에 없다"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := atlasNotice(t, func(p *proj) { junction(t, p, c.rel) }, "atlas_ui.spriteatlasv2", c.word, "비운다")
+			if e.Sub != nil {
+				t.Fatalf("sub 가 없어야 한다 = %+v", e.Sub)
+			}
+		})
+	}
 }

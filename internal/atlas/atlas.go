@@ -290,6 +290,12 @@ func (r *reader) folder(dir *meta.Asset) []Sprite {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}
+			// .meta 가 있는데 표에 없는 링크는 meta.Scan 이 뺀 링크·정션 폴더다. 안을 못 훑으니 일부만 찬 sub 를 막는다.
+			if d.Type()&(fs.ModeSymlink|fs.ModeIrregular) != 0 {
+				if _, err := os.Stat(p + ".meta"); err == nil {
+					r.fail("폴더 안 %s 가 링크·정션 폴더라 못 훑는다", filepath.ToSlash(rel))
+				}
+			}
 			return nil
 		}
 		if d.IsDir() {
